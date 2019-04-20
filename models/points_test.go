@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/influxdata/influxdb/models"
 )
 
@@ -2619,6 +2620,42 @@ func TestValidTagTokens(t *testing.T) {
 	}
 }
 
+func TestTags_Get(t *testing.T) {
+	for _, n := range []int{5, 25, 50, 100} {
+		t.Run(strconv.Itoa(n)+" tags", func(t *testing.T) {
+			tags := makeTags("tag", "val", n)
+			for i := 0; i < n; i++ {
+				key := []byte(fmt.Sprintf("tag%03d", i))
+				exp := []byte(fmt.Sprintf("val%03d", i))
+				if got := tags.Get(key); string(got) != string(exp) {
+					t.Errorf("unexpected Get -got/+exp\n%s", cmp.Diff(string(got), string(exp)))
+				}
+			}
+
+			exp := ""
+			// test were key is less than min
+			if got := tags.Get([]byte("aaa")); string(got) != string(exp) {
+				t.Errorf("unexpected Get -got/+exp\n%s", cmp.Diff(string(got), string(exp)))
+			}
+
+			// test were key is less than min
+			if got := tags.Get([]byte("aaa")); string(got) != string(exp) {
+				t.Errorf("unexpected Get -got/+exp\n%s", cmp.Diff(string(got), string(exp)))
+			}
+
+			// test were key is greater than max
+			if got := tags.Get([]byte("zzz")); string(got) != string(exp) {
+				t.Errorf("unexpected Get -got/+exp\n%s", cmp.Diff(string(got), string(exp)))
+			}
+
+			// test where key does not exist in middle
+			if got := tags.Get([]byte("tag02")); string(got) != string(exp) {
+				t.Errorf("unexpected Get -got/+exp\n%s", cmp.Diff(string(got), string(exp)))
+			}
+		})
+	}
+}
+
 func BenchmarkEscapeStringField_Plain(b *testing.B) {
 	s := "nothing special"
 	for i := 0; i < b.N; i++ {
@@ -2720,6 +2757,26 @@ func BenchmarkTags_HashKey(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				bm.t.HashKey()
+			}
+		})
+	}
+}
+
+var dead []byte
+
+func BenchmarkTags_Get(b *testing.B) {
+	for _, n := range []int{5, 25, 50, 100} {
+		b.Run(strconv.Itoa(n)+" tags", func(b *testing.B) {
+			tags := makeTags("tag", "val", n)
+			for _, name := range []string{"first", "middle", "last", "none"} {
+				pos := map[string]int{"first": 0, "middle": n / 2, "last": n - 1, "none": n}[name]
+				key := []byte(fmt.Sprintf("tag%03d", pos))
+				b.Run(name, func(b *testing.B) {
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						dead = tags.Get(key)
+					}
+				})
 			}
 		})
 	}

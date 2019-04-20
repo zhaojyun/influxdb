@@ -2142,14 +2142,41 @@ func CompareTags(a, b Tags) int {
 
 // Get returns the value for a key.
 func (a Tags) Get(key []byte) []byte {
-	// OPTIMIZE: Use sort.Search if tagset is large.
-
-	for _, t := range a {
-		if bytes.Equal(t.Key, key) {
-			return t.Value
+	if len(a) < 25 {
+		for i := range a {
+			if string(a[i].Key) == string(key) {
+				return a[i].Value
+			}
 		}
+		return nil
+	}
+
+	// empirical testing found 25 an ideal switch from linear to binary search
+	i := a.search(key)
+
+	if i < len(a) && string(a[i].Key) == string(key) {
+		return a[i].Value
 	}
 	return nil
+}
+
+func (a Tags) search(key []byte) int {
+	// Define: f(x) → a[x] < key
+	// Define: f(-1) == true, f(n) == false
+	// Invariant: f(lo-1) == true, f(hi) == false
+	lo := 0
+	hi := len(a)
+	for lo < hi {
+		mid := int(uint(lo+hi) >> 1)
+		if string(a[mid].Key) < string(key) {
+			lo = mid + 1 // preserves f(lo-1) == true
+		} else {
+			hi = mid // preserves f(hi) == false
+		}
+	}
+
+	// lo == hi
+	return lo
 }
 
 // GetString returns the string value for a string key.
