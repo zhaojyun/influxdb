@@ -2142,22 +2142,29 @@ func CompareTags(a, b Tags) int {
 
 // Get returns the value for a key.
 func (a Tags) Get(key []byte) []byte {
+	if i := a.indexOf(key); i > -1 {
+		return a[i].Value
+	}
+	return nil
+}
+
+func (a Tags) indexOf(key []byte) int {
 	if len(a) < 25 {
 		for i := range a {
 			if string(a[i].Key) == string(key) {
-				return a[i].Value
+				return i
 			}
 		}
-		return nil
+		return -1
 	}
 
 	// empirical testing found 25 an ideal switch from linear to binary search
 	i := a.search(key)
 
 	if i < len(a) && string(a[i].Key) == string(key) {
-		return a[i].Value
+		return i
 	}
-	return nil
+	return -1
 }
 
 func (a Tags) search(key []byte) int {
@@ -2194,6 +2201,22 @@ func (a *Tags) Set(key, value []byte) {
 	}
 	*a = append(*a, Tag{Key: key, Value: value})
 	sort.Sort(*a)
+}
+
+func (a Tags) RenameKey(oldkey, newkey []byte) error {
+	if i := a.indexOf(oldkey); i != -1 {
+		if j := a.indexOf(newkey); j != -1 {
+			return nil
+		}
+
+		a[i].Key = newkey
+
+		// check invariant
+		if i+1 < len(a) && string(a[i+1].Key) < string(newkey) {
+			sort.Sort(a)
+		}
+	}
+	return nil
 }
 
 // SetString sets the string value for a string key.

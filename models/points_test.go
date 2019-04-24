@@ -2656,6 +2656,12 @@ func TestTags_Get(t *testing.T) {
 	}
 }
 
+func TestTags_Set(t *testing.T) {
+	tags := models.NewTags(map[string]string{"tag0": "val0", "tag1": "val1", "tag2": "val2"})
+
+	t.Log(tags)
+}
+
 func BenchmarkEscapeStringField_Plain(b *testing.B) {
 	s := "nothing special"
 	for i := 0; i < b.N; i++ {
@@ -2765,7 +2771,7 @@ func BenchmarkTags_HashKey(b *testing.B) {
 var dead []byte
 
 func BenchmarkTags_Get(b *testing.B) {
-	for _, n := range []int{5, 25, 50, 100} {
+	for _, n := range []int{5, 10, 25, 50, 100} {
 		b.Run(strconv.Itoa(n)+" tags", func(b *testing.B) {
 			tags := makeTags("tag", "val", n)
 			for _, name := range []string{"first", "middle", "last", "none"} {
@@ -2780,6 +2786,10 @@ func BenchmarkTags_Get(b *testing.B) {
 			}
 		})
 	}
+}
+
+func BenchmarkTags_DeleteSet(b *testing.B) {
+
 }
 
 func BenchmarkMakeKey(b *testing.B) {
