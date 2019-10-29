@@ -1,6 +1,7 @@
 // Libraries
 import React, {PureComponent} from 'react'
 import {connect} from 'react-redux'
+import {Link} from 'react-router'
 import _ from 'lodash'
 
 // Components
@@ -28,6 +29,7 @@ interface OwnProps {
 }
 
 interface StateProps {
+  orgID: string
   telegraf: Telegraf
   status: RemoteDataState
   telegrafConfig: string
@@ -43,7 +45,7 @@ class TelegrafConfigOverlay extends PureComponent<Props> {
   }
 
   private get overlay(): JSX.Element {
-    const {telegraf, status} = this.props
+    const {telegraf, status, orgID} = this.props
 
     return (
       <Overlay.Container maxWidth={1200}>
@@ -52,6 +54,11 @@ class TelegrafConfigOverlay extends PureComponent<Props> {
           onDismiss={this.handleDismiss}
         />
         <Overlay.Body>
+          <p style={{ marginTop: '-18px' }}>
+            the INFLUX_TOKEN can be generated on the
+            <Link to={`/orgs/${orgID}/load-data/tokens`}>&nbsp;Tokens tab</Link>
+            .
+          </p>
           <SpinnerContainer
             loading={status}
             spinnerComponent={<TechnoSpinner />}
@@ -93,10 +100,12 @@ class TelegrafConfigOverlay extends PureComponent<Props> {
   }
 }
 
-const mstp = ({telegrafs, overlays}: AppState): StateProps => {
+const mstp = ({telegrafs, overlays, orgs}: AppState): StateProps => {
   const id = overlays.params.id
+  const orgID = orgs.org.id
 
   return {
+    orgID,
     telegraf: telegrafs.list.find(t => {
       return t.id === id
     }),
