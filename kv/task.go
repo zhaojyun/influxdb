@@ -366,7 +366,6 @@ func (s *Service) findTasksByOrg(ctx context.Context, tx Tx, filter influxdb.Tas
 		return nil, 0, influxdb.ErrUnexpectedTaskBucketErr(err)
 	}
 
-	var k, v []byte
 	// we can filter by orgID
 	if filter.After != nil {
 		key, err := taskOrgKey(org.ID, *filter.After)
@@ -376,7 +375,6 @@ func (s *Service) findTasksByOrg(ctx context.Context, tx Tx, filter influxdb.Tas
 		// ignore the key:val returned in this seek because we are starting "after"
 		// this key
 		c.Seek(key)
-		k, v = c.Next()
 	} else {
 		// if we dont have an after we just move the cursor to the first instance of the orgID
 		key, err := org.ID.Encode()
@@ -384,12 +382,20 @@ func (s *Service) findTasksByOrg(ctx context.Context, tx Tx, filter influxdb.Tas
 			return nil, 0, influxdb.ErrInvalidTaskID
 		}
 
-		k, v = c.Seek(key)
+		// seek and then step backwards so that the loop below begins at the
+		// seeked point.
+		c.Seek(key)
+		c.Prev()
 	}
 
 	matchFn := newTaskMatchFn(filter, nil)
 
-	for k != nil {
+	for {
+		k, v := c.Next()
+		if k == nil {
+			break
+		}
+
 		id, err := influxdb.IDFromString(string(v))
 		if err != nil {
 			return nil, 0, influxdb.ErrInvalidTaskID
@@ -416,8 +422,6 @@ func (s *Service) findTasksByOrg(ctx context.Context, tx Tx, filter influxdb.Tas
 				break
 			}
 		}
-
-		k, v = c.Next()
 	}
 
 	return ts, len(ts), err
