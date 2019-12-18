@@ -38,7 +38,6 @@ import {
 	Definition,
 	SignatureInformation,
 } from 'vscode-languageserver-types'
-import { CompletionTriggerKind, TextDocumentPositionParams, CompletionParams, CompletionContext, ReferenceParams, CodeLensParams, CodeActionParams, DocumentFormattingParams, DocumentRangeFormattingParams, DocumentOnTypeFormattingParams, RenameParams, DocumentLinkParams } from './protocol';
 
 const Is = {
 	boolean(value: any): value is boolean {
@@ -59,11 +58,9 @@ const Is = {
 	array<T>(value: any): value is T[] {
 		return Array.isArray(value);
 	},
-/*
 	stringArray(value: any): value is string[] {
-		return array(value) && (<any[]>value).every(elem => string(elem));
+		return Array.isArray(value) && (<any[]>value).every(elem => typeof elem === 'string' || elem instanceof String);
 	}
-*/
 }
 export type RecursivePartial<T> = {
     [P in keyof T]?: RecursivePartial<T[P]> | undefined;
@@ -125,13 +122,13 @@ export class MonacoToProtocolConverter {
 
 	asRange(range: null): null;
 	asRange(range: undefined): undefined;
-	asRange(range: monaco.IRange): Range;
-	asRange(range: monaco.IRange | undefined): Range | undefined;
-	asRange(range: monaco.IRange | null): Range | null;
-	asRange(range: Partial<monaco.IRange>): RecursivePartial<Range>;
-	asRange(range: Partial<monaco.IRange> | undefined): RecursivePartial<Range> | undefined;
-	asRange(range: Partial<monaco.IRange> | null): RecursivePartial<Range> | null;
-	asRange(range: Partial<monaco.IRange> | undefined | null): RecursivePartial<Range> | undefined | null {
+	asRange(range: monaco.IRange): ls.Range;
+	asRange(range: monaco.IRange | undefined): ls.Range | undefined;
+	asRange(range: monaco.IRange | null): ls.Range | null;
+	asRange(range: Partial<monaco.IRange>): RecursivePartial<ls.Range>;
+	asRange(range: Partial<monaco.IRange> | undefined): RecursivePartial<ls.Range> | undefined;
+	asRange(range: Partial<monaco.IRange> | null): RecursivePartial<ls.Range> | null;
+	asRange(range: Partial<monaco.IRange> | undefined | null): RecursivePartial<ls.Range> | undefined | null {
 		if (range === undefined) {
 			return undefined;
 		}
@@ -151,34 +148,34 @@ export class MonacoToProtocolConverter {
 		}
 	}
 
-	asTextDocumentPositionParams(model: monaco.editor.IReadOnlyModel, position: monaco.Position): TextDocumentPositionParams {
+	asTextDocumentPositionParams(model: monaco.editor.IReadOnlyModel, position: monaco.Position): ls.TextDocumentPositionParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model),
 			position: this.asPosition(position.lineNumber, position.column)
 		};
 	}
 
-	asCompletionParams(model: monaco.editor.IReadOnlyModel, position: monaco.Position, context: monaco.languages.CompletionContext): CompletionParams {
+	asCompletionParams(model: monaco.editor.IReadOnlyModel, position: monaco.Position, context: monaco.languages.CompletionContext): ls.CompletionParams {
 		return Object.assign(this.asTextDocumentPositionParams(model, position), {
 			context: this.asCompletionContext(context)
 		});
 	}
 
-	asCompletionContext(context: monaco.languages.CompletionContext): CompletionContext {
+	asCompletionContext(context: monaco.languages.CompletionContext): ls.CompletionContext {
 		return {
 			triggerKind: this.asTriggerKind(context.triggerKind),
 			triggerCharacter: context.triggerCharacter
 		}
 	}
 
-	asTriggerKind(triggerKind: monaco.languages.CompletionTriggerKind): CompletionTriggerKind {
+	asTriggerKind(triggerKind: monaco.languages.CompletionTriggerKind): ls.CompletionTriggerKind {
 		switch (triggerKind) {
 			case monaco.languages.CompletionTriggerKind.TriggerCharacter:
-				return CompletionTriggerKind.TriggerCharacter;
+				return ls.CompletionTriggerKind.TriggerCharacter;
 			case monaco.languages.CompletionTriggerKind.TriggerForIncompleteCompletions:
-				return CompletionTriggerKind.TriggerForIncompleteCompletions;
+				return ls.CompletionTriggerKind.TriggerForIncompleteCompletions;
 			default:
-				return CompletionTriggerKind.Invoked;
+				return ls.CompletionTriggerKind.Invoked;
 		}
 	}
 
@@ -266,7 +263,7 @@ export class MonacoToProtocolConverter {
 	protected fillPrimaryInsertText(target: CompletionItem, source: ProtocolCompletionItem): void {
 		let format: InsertTextFormat = InsertTextFormat.PlainText;
 		let text: string | undefined;
-		let range: Range | undefined;
+		let range: ls.Range | undefined;
 		if (source.insertTextRules !== undefined && (source.insertTextRules & monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet) === 0) {
 			format = InsertTextFormat.Snippet;
 			text = source.insertText;
@@ -304,7 +301,7 @@ export class MonacoToProtocolConverter {
 		return items.map(item => this.asTextEdit(item));
 	}
 
-	asReferenceParams(model: monaco.editor.IReadOnlyModel, position: monaco.Position, options: { includeDeclaration: boolean; }): ReferenceParams {
+	asReferenceParams(model: monaco.editor.IReadOnlyModel, position: monaco.Position, options: { includeDeclaration: boolean; }): ls.ReferenceParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model),
 			position: this.asPosition(position.lineNumber, position.column),
@@ -318,7 +315,7 @@ export class MonacoToProtocolConverter {
 		}
 	}
 
-	asCodeLensParams(model: monaco.editor.IReadOnlyModel): CodeLensParams {
+	asCodeLensParams(model: monaco.editor.IReadOnlyModel): ls.CodeLensParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model)
 		}
@@ -351,7 +348,7 @@ export class MonacoToProtocolConverter {
 		return markers.map(marker => this.asDiagnostic(marker));
 	}
 
-	asCodeActionContext(context: monaco.languages.CodeActionContext): CodeActionContext {
+	asCodeActionContext(context: monaco.languages.CodeActionContext): ls.CodeActionContext {
 		if (context === void 0 || context === null) {
 			return context;
 		}
@@ -359,7 +356,7 @@ export class MonacoToProtocolConverter {
 		return CodeActionContext.create(diagnostics, Is.string(context.only) ? [context.only] : undefined);
 	}
 
-	asCodeActionParams(model: monaco.editor.IReadOnlyModel, range: monaco.Range, context: monaco.languages.CodeActionContext): CodeActionParams {
+	asCodeActionParams(model: monaco.editor.IReadOnlyModel, range: monaco.Range, context: monaco.languages.CodeActionContext): ls.CodeActionParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model),
 			range: this.asRange(range),
@@ -388,14 +385,14 @@ export class MonacoToProtocolConverter {
 		return { tabSize: options.tabSize, insertSpaces: options.insertSpaces };
 	}
 
-	asDocumentFormattingParams(model: monaco.editor.IReadOnlyModel, options: monaco.languages.FormattingOptions): DocumentFormattingParams {
+	asDocumentFormattingParams(model: monaco.editor.IReadOnlyModel, options: monaco.languages.FormattingOptions): ls.DocumentFormattingParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model),
 			options: this.asFormattingOptions(options)
 		}
 	}
 
-	asDocumentRangeFormattingParams(model: monaco.editor.IReadOnlyModel, range: monaco.Range, options: monaco.languages.FormattingOptions): DocumentRangeFormattingParams {
+	asDocumentRangeFormattingParams(model: monaco.editor.IReadOnlyModel, range: monaco.Range, options: monaco.languages.FormattingOptions): ls.DocumentRangeFormattingParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model),
 			range: this.asRange(range),
@@ -403,7 +400,7 @@ export class MonacoToProtocolConverter {
 		}
 	}
 
-	asDocumentOnTypeFormattingParams(model: monaco.editor.IReadOnlyModel, position: monaco.IPosition, ch: string, options: monaco.languages.FormattingOptions): DocumentOnTypeFormattingParams {
+	asDocumentOnTypeFormattingParams(model: monaco.editor.IReadOnlyModel, position: monaco.IPosition, ch: string, options: monaco.languages.FormattingOptions): ls.DocumentOnTypeFormattingParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model),
 			position: this.asPosition(position.lineNumber, position.column),
@@ -412,7 +409,7 @@ export class MonacoToProtocolConverter {
 		}
 	}
 
-	asRenameParams(model: monaco.editor.IReadOnlyModel, position: monaco.IPosition, newName: string): RenameParams {
+	asRenameParams(model: monaco.editor.IReadOnlyModel, position: monaco.IPosition, newName: string): ls.RenameParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model),
 			position: this.asPosition(position.lineNumber, position.column),
@@ -420,7 +417,7 @@ export class MonacoToProtocolConverter {
 		}
 	}
 
-	asDocumentLinkParams(model: monaco.editor.IReadOnlyModel): DocumentLinkParams {
+	asDocumentLinkParams(model: monaco.editor.IReadOnlyModel): ls.DocumentLinkParams {
 		return {
 			textDocument: this.asTextDocumentIdentifier(model)
 		}
@@ -654,10 +651,10 @@ export class ProtocolToMonacoConverter {
 		return monaco.languages.DocumentHighlightKind.Text;
 	}
 
-	asReferences(values: Location[]): monaco.languages.Location[];
+	asReferences(values: ls.Location[]): monaco.languages.Location[];
 	asReferences(values: undefined | null): monaco.languages.Location[] | undefined;
-	asReferences(values: Location[] | undefined | null): monaco.languages.Location[] | undefined;
-	asReferences(values: Location[] | undefined | null): monaco.languages.Location[] | undefined {
+	asReferences(values: ls.Location[] | undefined | null): monaco.languages.Location[] | undefined;
+	asReferences(values: ls.Location[] | undefined | null): monaco.languages.Location[] | undefined {
 		if (!values) {
 			return undefined;
 		}
@@ -678,10 +675,10 @@ export class ProtocolToMonacoConverter {
 		}
 	}
 
-	asLocation(item: Location): monaco.languages.Location;
+	asLocation(item: ls.Location): monaco.languages.Location;
 	asLocation(item: undefined | null): undefined;
-	asLocation(item: Location | undefined | null): monaco.languages.Location | undefined;
-	asLocation(item: Location | undefined | null): monaco.languages.Location | undefined {
+	asLocation(item: ls.Location | undefined | null): monaco.languages.Location | undefined;
+	asLocation(item: ls.Location | undefined | null): monaco.languages.Location | undefined {
 		if (!item) {
 			return undefined;
 		}
@@ -962,21 +959,18 @@ export class ProtocolToMonacoConverter {
 	}
 
 	asRange(range: null): null;
-	asRange(range: undefined): undefined;
-	asRange(range: Range): monaco.Range;
-	asRange(range: Range | undefined): monaco.Range | undefined;
-	asRange(range: Range | null): monaco.Range | null;
-	asRange(range: RecursivePartial<Range>): Partial<monaco.IRange>;
-	asRange(range: RecursivePartial<Range> | undefined): monaco.Range | Partial<monaco.IRange> | undefined;
-	asRange(range: RecursivePartial<Range> | null): monaco.Range | Partial<monaco.IRange> | null;
-	asRange(range: RecursivePartial<Range> | undefined | null): monaco.Range | Partial<monaco.IRange> | undefined | null {
+    asRange(range: undefined): undefined;
+    asRange(range: ls.Range): monaco.Range;
+    asRange(range: ls.Range | undefined): monaco.Range | undefined;
+    asRange(range: ls.Range | null): monaco.Range | null;
+    asRange(range: RecursivePartial<ls.Range>): Partial<monaco.IRange>;
+    asRange(range: RecursivePartial<ls.Range> | undefined): monaco.Range | Partial<monaco.IRange> | undefined;
+    asRange(range: RecursivePartial<ls.Range> | null): monaco.Range | Partial<monaco.IRange> | null;
+    asRange(range: RecursivePartial<ls.Range> | undefined | null): monaco.Range | Partial<monaco.IRange> | undefined | null {
 		if (range === undefined) {
 			return undefined;
 		}
 		if (range === null) {
-			return null;
-		}
-		if (range.start === null || range.end === null) {
 			return null;
 		}
 		const start = this.asPosition(range.start);
@@ -1039,15 +1033,15 @@ export class ProtocolToMonacoConverter {
 	}
 
 	asFoldingRanges(items: undefined | null): undefined | null;
-	asFoldingRanges(items: monaco.languages.FoldingRange[]): monaco.languages.FoldingRange[];
-	asFoldingRanges(items: monaco.languages.FoldingRange[] | undefined | null): monaco.languages.FoldingRange[] | undefined | null {
+	asFoldingRanges(items: ls.FoldingRange[]): monaco.languages.FoldingRange[];
+	asFoldingRanges(items: ls.FoldingRange[] | undefined | null): monaco.languages.FoldingRange[] | undefined | null {
 		if (!items) {
 			return items;
 		}
 		return items.map(item => this.asFoldingRange(item));
 	}
 
-	asFoldingRange(item: monaco.languages.FoldingRange): monaco.languages.FoldingRange {
+	asFoldingRange(item: ls.FoldingRange): monaco.languages.FoldingRange {
 		return {
 			start: item.startLine + 1,
 			end: item.endLine + 1,
