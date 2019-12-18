@@ -66,8 +66,8 @@ func (e *Executor) createPromise(ctx context.Context, run *influxdb.Run) (*promi
 		close(p.done)
 	}()
 
-	e.promiseQueue <- p
-	e.currentPromises.Store(run.ID, p)
+	// e.promiseQueue <- p
+	// e.currentPromises.Store(run.ID, p)
 	return p, nil
 }
 
@@ -80,12 +80,10 @@ type Executor struct {
 	nextExecuteErr error
 
 	// currentPromises are all the promises we are made that have not been fulfilled
-	currentPromises sync.Map
+	// currentPromises sync.Map
 
 	// keep a pool of promise's we have in queue
-	promiseQueue chan *promise
-
-	// limitFunc LimitFunc
+	// promiseQueue chan *promise
 
 	currentID scheduler.ID
 }
@@ -94,10 +92,10 @@ var _ scheduler.Executor = (*Executor)(nil)
 
 func NewExecutor() *Executor {
 	return &Executor{
-		currentPromises: sync.Map{},
-		currentID:       scheduler.ID(0),
-		promiseQueue:    make(chan *promise, 1000),
-		hangingFor:      time.Second,
+		// currentPromises: sync.Map{},
+		currentID: scheduler.ID(0),
+		// promiseQueue:    make(chan *promise, 1000),
+		hangingFor: time.Second,
 	}
 }
 
@@ -114,28 +112,29 @@ func (e *Executor) Execute(ctx context.Context, id scheduler.ID, scheduledAt tim
 	e.currentID = scheduler.ID(id)
 	e.mu.Unlock()
 
-	for {
-		var prom *promise
-		// check to see if we can execute
-		select {
-		case p, ok := <-e.promiseQueue:
+	// for {
+	// 	var prom *promise
+	// 	// check to see if we can execute
+	// 	select {
+	// 	case p, ok := <-e.promiseQueue:
 
-			if !ok {
-				// the promiseQueue has been closed
-				return nil
-			}
-			prom = p
-		default:
-			// if nothing is left in the queue we are done
-			return nil
-		}
+	// 		if !ok {
+	// 			// the promiseQueue has been closed
+	// 			return nil
+	// 		}
+	// 		prom = p
+	// 	default:
+	// 		// if nothing is left in the queue we are done
+	// 		return nil
+	// 	}
 
-		// close promise done channel and set appropriate error
-		close(prom.done)
+	// 	// close promise done channel and set appropriate error
+	// 	close(prom.done)
 
-		// remove promise from registry
-		e.currentPromises.Delete(prom.run.ID)
-	}
+	// 	// remove promise from registry
+	// 	e.currentPromises.Delete(prom.run.ID)
+	// }
+	return nil
 }
 
 func (e *Executor) ManualRun(ctx context.Context, id influxdb.ID, runID influxdb.ID) (executor.Promise, error) {

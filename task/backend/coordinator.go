@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/influxdata/influxdb"
@@ -32,6 +33,8 @@ func NotifyCoordinatorOfExisting(ctx context.Context, log *zap.Logger, ts TaskSe
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("notify coordinator of existing....")
 
 	latestCompleted := now()
 	for len(tasks) > 0 {

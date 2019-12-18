@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/influxdata/influxdb"
 	pmock "github.com/influxdata/influxdb/mock"
 	_ "github.com/influxdata/influxdb/query/builtin"
@@ -180,11 +179,11 @@ func TestCoordinatingTaskService(t *testing.T) {
 }
 
 func TestCoordinatingTaskService_ForceRun(t *testing.T) {
-	cl := clock.NewMock()
+	// cl := clock.NewMock()
 	var (
 		ts         = inmemTaskService()
 		ex         = mock.NewExecutor()
-		sch, _, _  = scheduler.NewScheduler(ex, backend.NewSchedulableTaskService(ts), scheduler.WithTime(cl))
+		sch, _, _  = scheduler.NewScheduler(ex, backend.NewSchedulableTaskService(ts))
 		coord      = coordinator.NewCoordinator(zaptest.NewLogger(t), sch, ex)
 		middleware = middleware.New(ts, coord)
 	)
@@ -210,3 +209,21 @@ func TestCoordinatingTaskService_ForceRun(t *testing.T) {
 	}
 
 }
+
+// cancel run
+func TestCoordinatingTaskService_CancelRun(t *testing.T) {
+	var (
+		ts         = inmemTaskService()
+		ex         = mock.NewExecutor()
+		sch, _, _  = scheduler.NewScheduler(ex, backend.NewSchedulableTaskService(ts))
+		coord      = coordinator.NewCoordinator(zaptest.NewLogger(t), sch, ex)
+		middleware = middleware.New(ts, coord)
+	)
+
+	_, err := middleware.CreateTask(context.Background(), influxdb.TaskCreate{OrganizationID: 1, Flux: script})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// retry run
