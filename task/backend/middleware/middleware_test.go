@@ -24,6 +24,7 @@ const script = `option task = {name: "a task",cron: "* * * * *"} from(bucket:"te
 func inmemTaskService() influxdb.TaskService {
 	gen := snowflake.NewDefaultIDGenerator()
 	tasks := map[influxdb.ID]*influxdb.Task{}
+	runs := map[influxdb.ID]*influxdb.Run{}
 	mu := sync.Mutex{}
 
 	ts := &pmock.TaskService{
@@ -95,7 +96,30 @@ func inmemTaskService() influxdb.TaskService {
 				return nil, influxdb.ErrTaskNotFound
 			}
 
-			return &influxdb.Run{ID: id, TaskID: t.ID, ScheduledFor: time.Unix(scheduledFor, 0)}, nil
+			r := &influxdb.Run{ID: id, TaskID: t.ID, ScheduledFor: time.Unix(scheduledFor, 0)}
+			runs[id] = r
+			return r, nil
+		},
+		CancelRunFn: func(ctx context.Context, taskID influxdb.ID, runID influxdb.ID) error {
+			mu.Lock()
+			defer mu.Unlock()
+			_, ok := runs[runID]
+
+			if !ok {
+				return influxdb.ErrRunNotFound
+			}
+
+			return nil
+		},
+		RetryRunFn: func(ctx context.Context, taskID, runID influxdb.ID) (*influxdb.Run, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			r, ok := runs[runID]
+
+			if !ok {
+				return nil, influxdb.ErrRunNotFound
+			}
+			return r, nil
 		},
 	}
 	return ts
@@ -179,7 +203,6 @@ func TestCoordinatingTaskService(t *testing.T) {
 }
 
 func TestCoordinatingTaskService_ForceRun(t *testing.T) {
-	// cl := clock.NewMock()
 	var (
 		ts         = inmemTaskService()
 		ex         = mock.NewExecutor()
@@ -210,7 +233,6 @@ func TestCoordinatingTaskService_ForceRun(t *testing.T) {
 
 }
 
-// cancel run
 func TestCoordinatingTaskService_CancelRun(t *testing.T) {
 	var (
 		ts         = inmemTaskService()
@@ -220,10 +242,55 @@ func TestCoordinatingTaskService_CancelRun(t *testing.T) {
 		middleware = middleware.New(ts, coord)
 	)
 
-	_, err := middleware.CreateTask(context.Background(), influxdb.TaskCreate{OrganizationID: 1, Flux: script})
+	task, err := middleware.CreateTask(context.Background(), influxdb.TaskCreate{OrganizationID: 1, Flux: script})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manualRunTime := time.Now().Add(time.Hour).Unix()
+	run, err := middleware.ForceRun(context.Background(), task.ID, manualRunTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = middleware.CancelRun(context.Background(), task.ID, run.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-// retry run
+func TestCoordinatingTaskService_RetryRun(t *testing.T) {
+	var (
+		ts         = inmemTaskService()
+		ex         = mock.NewExecutor()
+		sch, _, _  = scheduler.NewScheduler(ex, backend.NewSchedulableTaskService(ts))
+		coord      = coordinator.NewCoordinator(zaptest.NewLogger(t), sch, ex)
+		middleware = middleware.New(ts, coord)
+	)
+
+	task, err := middleware.CreateTask(context.Background(), influxdb.TaskCreate{OrganizationID: 1, Flux: script})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manualRunTime := time.Now().Add(time.Hour).Unix()
+	run, err := middleware.ForceRun(context.Background(), task.ID, manualRunTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = middleware.CancelRun(context.Background(), task.ID, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := middleware.RetryRun(context.Background(), task.ID, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.ID != run.ID {
+		t.Fatalf("expected retried runID to be: %v, got: %v", run.ID, r.ID)
+	}
+
+}

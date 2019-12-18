@@ -47,6 +47,7 @@ func New(service influxdb.TaskService, coordinator Coordinator, opts ...Option) 
 
 // CreateTask Creates a task in the existing task service and Publishes the change so any TaskD service can lease it.
 func (s *CoordinatingTaskService) CreateTask(ctx context.Context, tc influxdb.TaskCreate) (*influxdb.Task, error) {
+	fmt.Println("creating....")
 	t, err := s.TaskService.CreateTask(ctx, tc)
 	if err != nil {
 		return t, err
