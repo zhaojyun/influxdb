@@ -1,4 +1,5 @@
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
+/// <reference path="./monaco/index.d.ts" />
+/// <reference path="./protocol/index.d.ts" />
 
 import {
 	ColorInformation,
@@ -6,31 +7,44 @@ import {
 	Position,
 	FoldingRangeKind,
 	DocumentLink,
+	SymbolInformation,
+	DocumentHighlight,
 	InsertTextFormat,
-// CompletionParams,
-// CompletionContext,
+	CodeActionContext,
+	//CompletionParams,
+	//CompletionContext,
 	CompletionItem,
 	CompletionItemKind,
-// ProtocolCompletionItem,
-// ProtocolDocumentLink,
+	//ProtocolCompletionItem,
+	//ProtocolDocumentLink,
 	DiagnosticRelatedInformation,
 	Diagnostic,
 	TextEdit,
 	CodeLens,
 	MarkupContent,
 	MarkupKind,
-MarkedString,
-Hover,
-ParameterInformation,
-DocumentSymbol,
-CompletionList,
-SymbolKind,
-DocumentSymbolParams,
-TextDocumentIdentifier,
-ReferenceContext,
-// 	CompletionTriggerKind,
-	// TextDocumentPositionParams,
+	MarkedString,
+	Hover,
+	ParameterInformation,
+	DocumentSymbol,
+	CompletionList,
+	SymbolKind,
+	DocumentSymbolParams,
+	TextDocumentIdentifier,
+	SignatureHelp,
+	WorkspaceEdit,
+	CodeAction,
+	Command,
+	DiagnosticSeverity,
+	FormattingOptions,
+	DocumentHighlightKind,
+	Definition,
+	SignatureInformation,
+	//CompletionTriggerKind,
+	//TextDocumentPositionParams,
 } from 'vscode-languageserver-types'
+import { CompletionTriggerKind, TextDocumentPositionParams, CompletionParams, CompletionContext, ReferenceParams, CodeLensParams, CodeActionParams, DocumentFormattingParams, DocumentRangeFormattingParams, DocumentOnTypeFormattingParams, RenameParams, DocumentLinkParams } from './protocol';
+import IReadOnlyModel = monaco.editor.IReadOnlyModel;
 
 const Is = {
 	boolean(value: any): value is boolean {
@@ -57,54 +71,28 @@ const Is = {
 	}
 */
 }
+export type RecursivePartial<T> = {
+    [P in keyof T]?: RecursivePartial<T[P]> | undefined;
+};
 
-export interface TextDocumentPositionParams {
-    /**
-     * The text document.
-     */
-    textDocument: TextDocumentIdentifier;
-    /**
-     * The position inside the text document.
-     */
-    position: Position;
+export interface ProtocolDocumentLink extends monaco.languages.ILink {
+    data?: any;
+}
+export namespace ProtocolDocumentLink {
+    export function is(item: any): item is ProtocolDocumentLink {
+        return !!item && 'data' in item;
+    }
 }
 
-export declare namespace CompletionTriggerKind {
-    /**
-     * Completion was triggered by typing an identifier (24x7 code
-     * complete), manual invocation (e.g Ctrl+Space) or via API.
-     */
-    const Invoked: 1;
-    /**
-     * Completion was triggered by a trigger character specified by
-     * the `triggerCharacters` properties of the `CompletionRegistrationOptions`.
-     */
-    const TriggerCharacter: 2;
-    /**
-     * Completion was re-triggered as current completion list is incomplete
-     */
-    const TriggerForIncompleteCompletions: 3;
+export interface ProtocolCodeLens extends monaco.languages.ICodeLensSymbol {
+    data?: any;
 }
-export declare type CompletionTriggerKind = 1 | 2 | 3;
+export namespace ProtocolCodeLens {
+    export function is(item: any): item is ProtocolCodeLens {
+        return !!item && 'data' in item;
+    }
+}
 
-export interface CompletionContext {
-    /**
-     * How the completion was triggered.
-     */
-    triggerKind: CompletionTriggerKind;
-    /**
-     * The trigger character (a single character) that has trigger code complete.
-     * Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`
-     */
-    triggerCharacter?: string;
-}
-export interface CompletionParams extends TextDocumentPositionParams {
-    /**
-     * The completion context. This is only available it the client specifies
-     * to send this using `ClientCapabilities.textDocument.completion.contextSupport === true`
-     */
-    context?: CompletionContext;
-}
 export interface ProtocolCompletionItem extends monaco.languages.CompletionItem {
     data?: any;
     fromEdit?: boolean;
@@ -117,187 +105,14 @@ export namespace ProtocolCompletionItem {
         return !!item && 'data' in item;
     }
 }
-
-export interface ReferenceParams extends TextDocumentPositionParams {
-    context: ReferenceContext;
-}
-
-export interface CodeLensParams {
-    /**
-     * The document to request code lens for.
-     */
-    textDocument: TextDocumentIdentifier;
-}
-
-export declare namespace DiagnosticSeverity {
-    /**
-     * Reports an error.
-     */
-    const Error: 1;
-    /**
-     * Reports a warning.
-     */
-    const Warning: 2;
-    /**
-     * Reports an information.
-     */
-    const Information: 3;
-    /**
-     * Reports a hint.
-     */
-    const Hint: 4;
-}
-export declare type DiagnosticSeverity = 1 | 2 | 3 | 4;
-
-export interface CodeActionParams {
-    /**
-     * The document in which the command was invoked.
-     */
-    textDocument: TextDocumentIdentifier;
-    /**
-     * The range for which the command was invoked.
-     */
-    range: Range;
-    /**
-     * Context carrying additional information.
-     */
-    context: CodeActionContext;
-}
-
-export interface CodeActionContext {
-    /**
-     * An array of diagnostics known on the client side overlapping the range provided to the
-     * `textDocument/codeAction` request. They are provied so that the server knows which
-     * errors are currently presented to the user for the given range. There is no guarantee
-     * that these accurately reflect the error state of the resource. The primary parameter
-     * to compute code actions is the provided range.
-     */
-    diagnostics: Diagnostic[];
-    /**
-     * Requested kind of actions to return.
-     *
-     * Actions not of this kind are filtered out by the client before being shown. So servers
-     * can omit computing them.
-     */
-    only?: CodeActionKind[];
-}
-/**
- * The CodeActionContext namespace provides helper functions to work with
- * [CodeActionContext](#CodeActionContext) literals.
- */
-export declare namespace CodeActionContext {
-    /**
-     * Creates a new CodeActionContext literal.
-     */
-    function create(diagnostics: Diagnostic[], only?: CodeActionKind[]): CodeActionContext;
-    /**
-     * Checks whether the given literal conforms to the [CodeActionContext](#CodeActionContext) interface.
-     */
-    function is(value: any): value is CodeActionContext;
-}
-
-export declare type CodeActionKind = string;
-/**
- * A set of predefined code action kinds
- */
-export declare namespace CodeActionKind {
-    /**
-     * Base kind for quickfix actions: 'quickfix'
-     */
-    const QuickFix: CodeActionKind;
-    /**
-     * Base kind for refactoring actions: 'refactor'
-     */
-    const Refactor: CodeActionKind;
-    /**
-     * Base kind for refactoring extraction actions: 'refactor.extract'
-     *
-     * Example extract actions:
-     *
-     * - Extract method
-     * - Extract function
-     * - Extract variable
-     * - Extract interface from class
-     * - ...
-     */
-    const RefactorExtract: CodeActionKind;
-    /**
-     * Base kind for refactoring inline actions: 'refactor.inline'
-     *
-     * Example inline actions:
-     *
-     * - Inline function
-     * - Inline variable
-     * - Inline constant
-     * - ...
-     */
-    const RefactorInline: CodeActionKind;
-    /**
-     * Base kind for refactoring rewrite actions: 'refactor.rewrite'
-     *
-     * Example rewrite actions:
-     *
-     * - Convert JavaScript function to class
-     * - Add or remove parameter
-     * - Encapsulate field
-     * - Make method static
-     * - Move method to base class
-     * - ...
-     */
-    const RefactorRewrite: CodeActionKind;
-    /**
-     * Base kind for source actions: `source`
-     *
-     * Source code actions apply to the entire file.
-     */
-    const Source: CodeActionKind;
-    /**
-     * Base kind for an organize imports source action: `source.organizeImports`
-     */
-    const SourceOrganizeImports: CodeActionKind;
-}
-
-export interface Command {
-    /**
-     * Title of the command, like `save`.
-     */
-    title: string;
-    /**
-     * The identifier of the actual command handler.
-     */
-    command: string;
-    /**
-     * Arguments that the command handler should be
-     * invoked with.
-     */
-    arguments?: any[];
-}
-/**
- * The Command namespace provides helper functions to work with
- * [Command](#Command) literals.
- */
-export declare namespace Command {
-    /**
-     * Creates a new Command literal.
-     */
-    function create(title: string, command: string, ...args: any[]): Command;
-    /**
-     * Checks whether the given literal conforms to the [Command](#Command) interface.
-     */
-    function is(value: any): value is Command;
-}
 /*
-export type RecursivePartial<T> = {
-	[P in keyof T]?: RecursivePartial<T[P]>;
-};
-*/
-
 type RecursivePartial<T> = {
   [P in keyof T]?:
     T[P] extends (infer U)[] ? RecursivePartial<U>[] :
     T[P] extends object ? RecursivePartial<T[P]> :
     T[P];
 };
+*/
 
 export class MonacoToProtocolConverter {
 	asPosition(lineNumber: undefined | null, column: undefined | null): {};
@@ -1164,6 +979,9 @@ export class ProtocolToMonacoConverter {
 			return undefined;
 		}
 		if (range === null) {
+			return null;
+		}
+		if (range.start === null || range.end === null) {
 			return null;
 		}
 		const start = this.asPosition(range.start);
