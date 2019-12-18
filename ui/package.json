@@ -182,6 +182,7 @@
     "reselect": "^4.0.0",
     "rome": "^2.1.22",
     "uuid": "^3.2.1",
+    "vscode-languageserver-protocol": "^3.14.1",
     "vscode-languageserver-types": "^3.14.0",
     "webpack-bundle-analyzer": "^3.6.0"
   }

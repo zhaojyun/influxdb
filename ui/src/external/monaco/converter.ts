@@ -1,6 +1,7 @@
 /// <reference path="./monaco/index.d.ts" />
 /// <reference path="./protocol/index.d.ts" />
 
+import * as ls from 'vscode-languageserver-protocol';
 import {
 	ColorInformation,
 	ColorPresentation,
@@ -11,12 +12,8 @@ import {
 	DocumentHighlight,
 	InsertTextFormat,
 	CodeActionContext,
-	//CompletionParams,
-	//CompletionContext,
 	CompletionItem,
 	CompletionItemKind,
-	//ProtocolCompletionItem,
-	//ProtocolDocumentLink,
 	DiagnosticRelatedInformation,
 	Diagnostic,
 	TextEdit,
@@ -40,11 +37,8 @@ import {
 	DocumentHighlightKind,
 	Definition,
 	SignatureInformation,
-	//CompletionTriggerKind,
-	//TextDocumentPositionParams,
 } from 'vscode-languageserver-types'
 import { CompletionTriggerKind, TextDocumentPositionParams, CompletionParams, CompletionContext, ReferenceParams, CodeLensParams, CodeActionParams, DocumentFormattingParams, DocumentRangeFormattingParams, DocumentOnTypeFormattingParams, RenameParams, DocumentLinkParams } from './protocol';
-import IReadOnlyModel = monaco.editor.IReadOnlyModel;
 
 const Is = {
 	boolean(value: any): value is boolean {
@@ -110,7 +104,8 @@ type RecursivePartial<T> = {
   [P in keyof T]?:
     T[P] extends (infer U)[] ? RecursivePartial<U>[] :
     T[P] extends object ? RecursivePartial<T[P]> :
-    T[P];
+	T[P] :
+	undefined
 };
 */
 
