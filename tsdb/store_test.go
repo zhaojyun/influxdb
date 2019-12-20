@@ -1182,6 +1182,100 @@ func TestStore_Cardinality_Compactions(t *testing.T) {
 	}
 }
 
+func TestStore_Cardinality_Limit(t *testing.T) {
+	t.Parallel()
+
+	if testing.Short() || os.Getenv("GORACE") != "" || os.Getenv("APPVEYOR") != "" {
+		t.Skip("Skipping test in short, race and appveyor mode.")
+	}
+
+	test := func(index string) {
+		store := NewStore(index)
+		store.EngineOptions.Config.MaxSeriesPerDatabase = 100000
+		if err := store.Open(); err != nil {
+			panic(err)
+		}
+		defer store.Close()
+		testStoreCardinalityLimit(t, store)
+	}
+
+	for _, index := range tsdb.RegisteredIndexes() {
+		t.Run(index, func(t *testing.T) { test(index) })
+	}
+}
+
+// This test tests cardinality estimation when series cardinality limits are enabled.
+func testStoreCardinalityLimit(t *testing.T, store *Store) {
+	// Generate point data to write to the shards.
+	series := genTestSeries(64, 5, 5) // 200,000 series.
+
+	// One point per series.
+	points := make([]models.Point, 0, len(series))
+	for _, s := range series {
+		points = append(points, models.MustNewPoint(s.Measurement, s.Tags, map[string]interface{}{"value": 1.0}, time.Now()))
+	}
+
+	// Pre-create shards before writing points. We want to test writing new
+	// series concurrently to multiple shards.
+	numShards := 10
+	for shardID := 0; shardID < numShards; shardID++ {
+		if err := store.CreateShard("db", "rp", uint64(shardID), true); err != nil {
+			t.Fatalf("create shard: %s", err)
+		}
+	}
+
+	// Start a go routine per shard to write points.
+	pointsPerShard := len(points) / numShards
+
+	wg := &sync.WaitGroup{}
+	start := make(chan struct{})
+	errs := make(chan error)
+
+	// Go routine to close errs chan when writes are done.
+	go func() { wg.Wait(); close(errs) }()
+
+	for shardID := 0; shardID < numShards; shardID++ {
+		wg.Add(1)
+		go func(shardID int) {
+			defer wg.Done()
+			<-start
+
+			from := shardID * pointsPerShard
+			to := from + pointsPerShard
+
+			if err := store.BatchWrite(shardID, points[from:to]); err != nil {
+				if !strings.Contains(err.Error(), "partial write: max-series-per-database limit exceeded:") {
+					errs <- err
+					return
+				}
+			}
+		}(shardID)
+	}
+
+	// Signal writers to write.
+	close(start)
+
+	// Watch for an error from any of the writers and wait till they're
+	// all finished.
+	for err := range errs {
+		t.Fatalf("batch write: %s", err)
+	}
+
+	// Estimate the series cardinality...
+	cardinality, err := store.Store.SeriesCardinality("db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expCardinality := store.EngineOptions.Config.MaxSeriesPerDatabase
+
+	// Estimated cardinality should be well within 1.5% of the actual cardinality.
+	got := math.Abs(float64(cardinality)-float64(expCardinality)) / float64(expCardinality)
+	exp := 0.015
+	if got > exp {
+		t.Errorf("got epsilon of %v for series cardinality %d (expected %d), which is larger than expected %v", got, cardinality, expCardinality, exp)
+	}
+}
+
 func TestStore_Sketches(t *testing.T) {
 	t.Parallel()
 
