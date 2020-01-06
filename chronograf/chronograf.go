@@ -600,6 +600,9 @@ type DashboardCell struct {
 	FieldOptions  []RenamableField `json:"fieldOptions"`
 	TimeFormat    string           `json:"timeFormat"`
 	DecimalPlaces DecimalPlaces    `json:"decimalPlaces"`
+	// These were added after this code was brought over to influxdb.
+	Note           string `json:"note"`
+	NoteVisibility string `json:"noteVisibility"`
 }
 
 // RenamableField is a column/row field in a DashboardCell of type Table
