@@ -16,7 +16,7 @@ export const CLOUD_FLAGS = {
   monacoEditor: false,
   cloudBilling: CLOUD_BILLING_VISIBLE, // should be visible in dev and acceptance, but not in cloud
   downloadCellCSV: false,
-  telegrafEditor: false,
+  telegrafEditor: true,
   queryBuilderGrouping: false,
   customCheckQuery: false,
   matchingNotificationRules: false,
