@@ -164,7 +164,6 @@ func assignRangeThreshold(r Resource, rangeThreshold icheck.Range) {
 	r[fieldMax] = rangeThreshold.Max
 	r[fieldMin] = rangeThreshold.Min
 }
-
 func convertCellView(cell influxdb.Cell) chart {
 	var name string
 	if cell.View != nil {
