@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/influxdata/flux/ast"
 	"github.com/influxdata/influxdb"
 	"github.com/influxdata/influxdb/chronograf"
+	"github.com/influxdata/influxdb/query/influxql"
 )
 
 func convert1To2Cell(cell chronograf.DashboardCell) *influxdb.Cell {
@@ -303,7 +309,30 @@ func convertColors(cs []chronograf.CellColor) []influxdb.ViewColor {
 	return vs
 }
 
+func transpileQuery(q string) (string, error) {
+	now := time.Now()
+	t := influxql.NewTranspilerWithConfig(dbrpMapper{}, influxql.Config{
+		Now:            now,
+		FallbackToDBRP: true,
+	})
+
+	query := q
+	query = strings.Replace(query, ":interval:", "8675309ns", -1)
+	query = strings.Replace(query, ":dashboardTime:", "now() - 15m", 1)
+	query = strings.Replace(query, ":upperDashboardTime:", "now()", 1)
+
+	// TODO(desa): need to remove all variables
+
+	pkg, err := t.Transpile(context.Background(), query)
+	if err != nil {
+		return "", err
+	}
+
+	return ast.Format(pkg), nil
+}
+
 func convertQueries(qs []chronograf.DashboardQuery) []influxdb.DashboardQuery {
+
 	ds := []influxdb.DashboardQuery{}
 	for _, q := range qs {
 		d := influxdb.DashboardQuery{
@@ -311,8 +340,6 @@ func convertQueries(qs []chronograf.DashboardQuery) []influxdb.DashboardQuery {
 			Text:     "// " + q.Command,
 			EditMode: "advanced",
 		}
-
-		_ = q
 
 		ds = append(ds, d)
 	}
@@ -331,4 +358,24 @@ func convertQueries(qs []chronograf.DashboardQuery) []influxdb.DashboardQuery {
 	}
 
 	return ds
+}
+
+type dbrpMapper struct {
+}
+
+func (m dbrpMapper) FindBy(ctx context.Context, cluster string, db string, rp string) (*influxdb.DBRPMapping, error) {
+	return nil, errors.New("mapping not found")
+}
+func (m dbrpMapper) Find(ctx context.Context, filter influxdb.DBRPMappingFilter) (*influxdb.DBRPMapping, error) {
+	return nil, errors.New("mapping not found")
+}
+func (m dbrpMapper) FindMany(ctx context.Context, filter influxdb.DBRPMappingFilter, opt ...influxdb.FindOptions) ([]*influxdb.DBRPMapping, int, error) {
+	return nil, 0, errors.New("mapping not found")
+
+}
+func (m dbrpMapper) Create(ctx context.Context, dbrpMap *influxdb.DBRPMapping) error {
+	return errors.New("dbrpMapper does not support creating new mappings")
+}
+func (m dbrpMapper) Delete(ctx context.Context, cluster string, db string, rp string) error {
+	return errors.New("dbrpMapper does not support deleteing mappings")
 }
