@@ -2186,7 +2186,9 @@ type chart struct {
 	Kind            chartKind
 	Name            string
 	Prefix          string
+	TickPrefix      string
 	Suffix          string
+	TickSuffix      string
 	Note            string
 	NoteOnEmpty     bool
 	DecimalPlaces   int
@@ -2213,7 +2215,9 @@ func (c chart) properties() influxdb.ViewProperties {
 			Type:       influxdb.ViewPropertyTypeGauge,
 			Queries:    c.Queries.influxDashQueries(),
 			Prefix:     c.Prefix,
+			TickPrefix: c.TickPrefix,
 			Suffix:     c.Suffix,
+			TickSuffix: c.TickSuffix,
 			ViewColors: c.Colors.influxViewColors(),
 			DecimalPlaces: influxdb.DecimalPlaces{
 				IsEnforced: c.EnforceDecimals,
