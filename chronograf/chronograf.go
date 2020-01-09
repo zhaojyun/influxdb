@@ -224,7 +224,8 @@ type DashboardQuery struct {
 	QueryConfig QueryConfig `json:"queryConfig,omitempty"` // QueryConfig represents the query state that is understood by the data explorer
 	Source      string      `json:"source"`                // Source is the optional URI to the data source for this queryConfig
 	Shifts      []TimeShift `json:"-"`                     // Shifts represents shifts to apply to an influxql query's time range.  Clients expect the shift to be in the generated QueryConfig
-	Type        string      `json:"type"`
+	// This was added after this code was brought over to influxdb.
+	Type string `json:"type,omitempty"`
 }
 
 // TemplateQuery is used to retrieve choices for template replacement
@@ -602,8 +603,8 @@ type DashboardCell struct {
 	TimeFormat    string           `json:"timeFormat"`
 	DecimalPlaces DecimalPlaces    `json:"decimalPlaces"`
 	// These were added after this code was brought over to influxdb.
-	Note           string `json:"note"`
-	NoteVisibility string `json:"noteVisibility"`
+	Note           string `json:"note,omitempty"`
+	NoteVisibility string `json:"noteVisibility,omitempty"`
 }
 
 // RenamableField is a column/row field in a DashboardCell of type Table
