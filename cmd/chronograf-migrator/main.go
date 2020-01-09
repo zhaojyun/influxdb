@@ -51,7 +51,7 @@ func exec(dbPath, out string) error {
 		Spec: struct {
 			Resources []pkger.Resource `yaml:"resources" json:"resources"`
 		}{
-			Resources: make([]pkger.Resource, 0, 0),
+			Resources: make([]pkger.Resource, 0),
 		},
 	}
 
