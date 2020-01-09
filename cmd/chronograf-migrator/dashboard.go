@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -309,6 +310,8 @@ func convertColors(cs []chronograf.CellColor) []influxdb.ViewColor {
 	return vs
 }
 
+var influxQLVarPattern = regexp.MustCompile(`'?:(\w+):'?`)
+
 func transpileQuery(q string) (string, error) {
 	now := time.Now()
 	t := influxql.NewTranspilerWithConfig(dbrpMapper{}, influxql.Config{
@@ -321,7 +324,8 @@ func transpileQuery(q string) (string, error) {
 	query = strings.Replace(query, ":dashboardTime:", "now() - 15m", 1)
 	query = strings.Replace(query, ":upperDashboardTime:", "now()", 1)
 
-	// TODO(desa): need to remove all variables
+	// TODO(desa): replace all variables not using this hack
+	query = influxQLVarPattern.ReplaceAllString(query, "'$1'")
 
 	pkg, err := t.Transpile(context.Background(), query)
 	if err != nil {
@@ -335,9 +339,22 @@ func convertQueries(qs []chronograf.DashboardQuery) []influxdb.DashboardQuery {
 
 	ds := []influxdb.DashboardQuery{}
 	for _, q := range qs {
+		queryText := q.Command
+		if q.Type == "influxql" {
+			// if the query is influxql, add it as a comment and attempt to
+			// compile it to flux
+			queryText = fmt.Sprintf("// %s", queryText)
+
+			tq, err := transpileQuery(q.Command)
+			if err != nil {
+				queryText = fmt.Sprintf("// Failed to transpile query: %v\n%s", err, queryText)
+			} else {
+				queryText = fmt.Sprintf("// Original Query:\n%s\n\n%s", queryText, tq)
+			}
+		}
+
 		d := influxdb.DashboardQuery{
-			// TODO(desa): possibly we should try to compile the query to flux that we can show the user.
-			Text:     "// " + q.Command,
+			Text:     queryText,
 			EditMode: "advanced",
 		}
 
@@ -346,7 +363,6 @@ func convertQueries(qs []chronograf.DashboardQuery) []influxdb.DashboardQuery {
 
 	if len(ds) == 0 {
 		d := influxdb.DashboardQuery{
-			// TODO(desa): possibly we should try to compile the query to flux that we can show the user.
 			Text:     "// cell had no queries",
 			EditMode: "advanced",
 			BuilderConfig: influxdb.BuilderConfig{
