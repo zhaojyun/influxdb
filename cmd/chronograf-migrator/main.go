@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/influxdata/influxdb/chronograf"
 	"github.com/influxdata/influxdb/chronograf/bolt"
@@ -65,14 +66,15 @@ func exec(dbPath, out string) error {
 		pkg.Spec.Resources = append(pkg.Spec.Resources, pkger.DashboardToResource(d2, d2.Name))
 
 		for _, v := range vs {
-			if hasVar[v.Name] {
+			name := strings.ToLower(v.Name)
+			if hasVar[name] {
 				// TODO(desa): not sure what we actually want to do here
-				logger.Printf("Found duplicate variables with name %q skipping\n", v.Name)
+				logger.Printf("Found duplicate variables with name %q skipping\n", name)
 				continue
 			}
-			hasVar[v.Name] = true
+			hasVar[name] = true
 
-			pkg.Spec.Resources = append(pkg.Spec.Resources, pkger.VariableToResource(v, v.Name))
+			pkg.Spec.Resources = append(pkg.Spec.Resources, pkger.VariableToResource(v, name))
 		}
 	}
 
