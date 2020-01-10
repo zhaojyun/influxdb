@@ -10,35 +10,41 @@ import (
 	platform "github.com/influxdata/influxdb"
 	_ "github.com/influxdata/influxdb/query/stdlib"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
-
-var queryCmd = &cobra.Command{
-	Use:   "query [query literal or @/path/to/query.flux]",
-	Short: "Execute a Flux query",
-	Long: `Execute a literal Flux query provided as a string,
-or execute a literal Flux query contained in a file by specifying the file prefixed with an @ sign.`,
-	Args: cobra.ExactArgs(1),
-	RunE: wrapCheckSetup(fluxQueryF),
-}
 
 var queryFlags struct {
 	OrgID string
 	Org   string
 }
 
-func init() {
-	queryCmd.PersistentFlags().StringVar(&queryFlags.OrgID, "org-id", "", "The organization ID")
-	viper.BindEnv("ORG_ID")
-	if h := viper.GetString("ORG_ID"); h != "" {
-		queryFlags.OrgID = h
+func cmdQuery() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "query [query literal or @/path/to/query.flux]",
+		Short: "Execute a Flux query",
+		Long: `Execute a literal Flux query provided as a string,
+or execute a literal Flux query contained in a file by specifying the file prefixed with an @ sign.`,
+		Args: cobra.ExactArgs(1),
+		RunE: wrapCheckSetup(fluxQueryF),
 	}
 
-	queryCmd.PersistentFlags().StringVarP(&queryFlags.Org, "org", "o", "", "The organization name")
-	viper.BindEnv("ORG")
-	if h := viper.GetString("ORG"); h != "" {
-		queryFlags.Org = h
+	opts := flagOpts{
+		{
+			DestP:      &queryFlags.OrgID,
+			Flag:       "org-id",
+			Desc:       "The organization ID",
+			Persistent: true,
+		},
+		{
+			DestP:      &queryFlags.Org,
+			Flag:       "org",
+			Short:      'o',
+			Desc:       "The organization name",
+			Persistent: true,
+		},
 	}
+	opts.mustRegister(cmd)
+
+	return cmd
 }
 
 func fluxQueryF(cmd *cobra.Command, args []string) error {

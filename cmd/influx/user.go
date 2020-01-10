@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func userCmd() *cobra.Command {
+func cmdUser() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "user",
 		Short: "User management commands",
@@ -123,10 +123,10 @@ func userCreateCmd() *cobra.Command {
 		RunE:  wrapCheckSetup(userCreateF),
 	}
 
+	userCreateFlags.organization.register(cmd, false)
 	cmd.Flags().StringVarP(&userCreateFlags.name, "name", "n", "", "The user name (required)")
 	cmd.MarkFlagRequired("name")
 	cmd.Flags().StringVarP(&userCreateFlags.password, "password", "p", "", "The user password")
-	userCreateFlags.organization.register(cmd)
 
 	return cmd
 }

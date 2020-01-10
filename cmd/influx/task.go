@@ -13,55 +13,47 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// task Command
-var taskCmd = &cobra.Command{
-	Use:   "task",
-	Short: "Task management commands",
-	RunE:  wrapCheckSetup(taskF),
-}
+func cmdTask() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "task",
+		Short: "Task management commands",
+		RunE: wrapCheckSetup(func(cmd *cobra.Command, args []string) error {
+			if flags.local {
+				return fmt.Errorf("local flag not supported for task command")
+			}
 
-func taskF(cmd *cobra.Command, args []string) error {
-	if flags.local {
-		return fmt.Errorf("local flag not supported for task command")
+			seeHelp(cmd, args)
+			return nil
+		}),
 	}
 
-	seeHelp(cmd, args)
-	return nil
-}
+	cmd.AddCommand(
+		taskLogCmd(),
+		taskRunCmd(),
+		taskCreateCmd(),
+		taskDeleteCmd(),
+		taskFindCmd(),
+		taskUpdateCmd(),
+	)
 
-var logCmd = &cobra.Command{
-	Use:   "log",
-	Short: "Log related commands",
-	Run:   seeHelp,
-}
-
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run related commands",
-	Run:   seeHelp,
-}
-
-func init() {
-	taskCmd.AddCommand(runCmd)
-	taskCmd.AddCommand(logCmd)
+	return cmd
 }
 
 var taskCreateFlags struct {
 	organization
 }
 
-func init() {
-	taskCreateCmd := &cobra.Command{
+func taskCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "create [query literal or @/path/to/query.flux]",
 		Short: "Create task",
 		Args:  cobra.ExactArgs(1),
 		RunE:  wrapCheckSetup(taskCreateF),
 	}
 
-	taskCreateFlags.organization.register(taskCreateCmd)
-	taskCreateCmd.MarkFlagRequired("flux")
+	taskCreateFlags.organization.register(cmd, false)
 
-	taskCmd.AddCommand(taskCreateCmd)
+	return cmd
 }
 
 func taskCreateF(cmd *cobra.Command, args []string) error {
@@ -134,20 +126,20 @@ var taskFindFlags struct {
 	organization
 }
 
-func init() {
-	taskFindCmd := &cobra.Command{
+func taskFindCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "find",
 		Short: "Find tasks",
 		RunE:  wrapCheckSetup(taskFindF),
 	}
 
-	taskFindCmd.Flags().StringVarP(&taskFindFlags.id, "id", "i", "", "task ID")
-	taskFindCmd.Flags().StringVarP(&taskFindFlags.user, "user-id", "n", "", "task owner ID")
-	taskFindFlags.organization.register(taskFindCmd)
-	taskFindCmd.Flags().IntVarP(&taskFindFlags.limit, "limit", "", platform.TaskDefaultPageSize, "the number of tasks to find")
-	taskFindCmd.Flags().BoolVar(&taskFindFlags.headers, "headers", true, "To print the table headers; defaults true")
+	taskFindFlags.organization.register(cmd, false)
+	cmd.Flags().StringVarP(&taskFindFlags.id, "id", "i", "", "task ID")
+	cmd.Flags().StringVarP(&taskFindFlags.user, "user-id", "n", "", "task owner ID")
+	cmd.Flags().IntVarP(&taskFindFlags.limit, "limit", "", platform.TaskDefaultPageSize, "the number of tasks to find")
+	cmd.Flags().BoolVar(&taskFindFlags.headers, "headers", true, "To print the table headers; defaults true")
 
-	taskCmd.AddCommand(taskFindCmd)
+	return cmd
 }
 
 func taskFindF(cmd *cobra.Command, args []string) error {
@@ -240,7 +232,7 @@ var taskUpdateFlags struct {
 	status string
 }
 
-func init() {
+func taskUpdateCmd() *cobra.Command {
 	taskUpdateCmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update task",
@@ -251,7 +243,7 @@ func init() {
 	taskUpdateCmd.Flags().StringVarP(&taskUpdateFlags.status, "status", "", "", "update task status")
 	taskUpdateCmd.MarkFlagRequired("id")
 
-	taskCmd.AddCommand(taskUpdateCmd)
+	return taskUpdateCmd
 }
 
 func taskUpdateF(cmd *cobra.Command, args []string) error {
@@ -313,17 +305,17 @@ var taskDeleteFlags struct {
 	id string
 }
 
-func init() {
-	taskDeleteCmd := &cobra.Command{
+func taskDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete task",
 		RunE:  wrapCheckSetup(taskDeleteF),
 	}
 
-	taskDeleteCmd.Flags().StringVarP(&taskDeleteFlags.id, "id", "i", "", "task id (required)")
-	taskDeleteCmd.MarkFlagRequired("id")
+	cmd.Flags().StringVarP(&taskDeleteFlags.id, "id", "i", "", "task id (required)")
+	cmd.MarkFlagRequired("id")
 
-	taskCmd.AddCommand(taskDeleteCmd)
+	return cmd
 }
 
 func taskDeleteF(cmd *cobra.Command, args []string) error {
@@ -374,23 +366,37 @@ func taskDeleteF(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func taskLogCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "log",
+		Short: "Log related commands",
+		Run:   seeHelp,
+	}
+
+	cmd.AddCommand(
+		taskLogFindCmd(),
+	)
+
+	return cmd
+}
+
 var taskLogFindFlags struct {
 	taskID string
 	runID  string
 }
 
-func init() {
-	taskLogFindCmd := &cobra.Command{
+func taskLogFindCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "find",
 		Short: "find logs for task",
 		RunE:  wrapCheckSetup(taskLogFindF),
 	}
 
-	taskLogFindCmd.Flags().StringVarP(&taskLogFindFlags.taskID, "task-id", "", "", "task id (required)")
-	taskLogFindCmd.Flags().StringVarP(&taskLogFindFlags.runID, "run-id", "", "", "run id")
-	taskLogFindCmd.MarkFlagRequired("task-id")
+	cmd.Flags().StringVarP(&taskLogFindFlags.taskID, "task-id", "", "", "task id (required)")
+	cmd.Flags().StringVarP(&taskLogFindFlags.runID, "run-id", "", "", "run id")
+	cmd.MarkFlagRequired("task-id")
 
-	logCmd.AddCommand(taskLogFindCmd)
+	return cmd
 }
 
 func taskLogFindF(cmd *cobra.Command, args []string) error {
@@ -439,6 +445,20 @@ func taskLogFindF(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+func taskRunCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run related commands",
+		Run:   seeHelp,
+	}
+	cmd.AddCommand(
+		taskRunFindCmd(),
+		taskRunRetryCmd(),
+	)
+
+	return cmd
+}
+
 var taskRunFindFlags struct {
 	runID      string
 	taskID     string
@@ -447,22 +467,22 @@ var taskRunFindFlags struct {
 	limit      int
 }
 
-func init() {
-	taskRunFindCmd := &cobra.Command{
+func taskRunFindCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "find",
 		Short: "find runs for a task",
 		RunE:  wrapCheckSetup(taskRunFindF),
 	}
 
-	taskRunFindCmd.Flags().StringVarP(&taskRunFindFlags.taskID, "task-id", "", "", "task id (required)")
-	taskRunFindCmd.Flags().StringVarP(&taskRunFindFlags.runID, "run-id", "", "", "run id")
-	taskRunFindCmd.Flags().StringVarP(&taskRunFindFlags.afterTime, "after", "", "", "after time for filtering")
-	taskRunFindCmd.Flags().StringVarP(&taskRunFindFlags.beforeTime, "before", "", "", "before time for filtering")
-	taskRunFindCmd.Flags().IntVarP(&taskRunFindFlags.limit, "limit", "", 0, "limit the results")
+	cmd.Flags().StringVarP(&taskRunFindFlags.taskID, "task-id", "", "", "task id (required)")
+	cmd.Flags().StringVarP(&taskRunFindFlags.runID, "run-id", "", "", "run id")
+	cmd.Flags().StringVarP(&taskRunFindFlags.afterTime, "after", "", "", "after time for filtering")
+	cmd.Flags().StringVarP(&taskRunFindFlags.beforeTime, "before", "", "", "before time for filtering")
+	cmd.Flags().IntVarP(&taskRunFindFlags.limit, "limit", "", 0, "limit the results")
 
-	taskRunFindCmd.MarkFlagRequired("task-id")
+	cmd.MarkFlagRequired("task-id")
 
-	runCmd.AddCommand(taskRunFindCmd)
+	return cmd
 }
 
 func taskRunFindF(cmd *cobra.Command, args []string) error {
@@ -537,7 +557,7 @@ var runRetryFlags struct {
 	taskID, runID string
 }
 
-func init() {
+func taskRunRetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "retry",
 		Short: "retry a run",
@@ -549,7 +569,7 @@ func init() {
 	cmd.MarkFlagRequired("task-id")
 	cmd.MarkFlagRequired("run-id")
 
-	runCmd.AddCommand(cmd)
+	return cmd
 }
 
 func runRetryF(cmd *cobra.Command, args []string) error {
